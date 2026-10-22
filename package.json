@@ -1,0 +1,34 @@
+{
+  "name": "edgenroots-formula-engine",
+  "version": "1.0.0",
+  "description": "",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "nodemon src/server.js",
+    "test": "vitest run",
+    "benchmark": "node scripts/benchmark.js",
+    "probe": "node scripts/probe-interpreter.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "acorn": "^8.19.0",
+    "cors": "^2.8.6",
+    "decimal.js": "^10.6.0",
+    "dotenv": "^18.0.8",
+    "express": "^5.3.0",
+    "formula-interpreter": "^2.1.0",
+    "helmet": "^8.3.0",
+    "mysql2": "^3.24.6",
+    "uuid": "^14.0.3",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.14",
+    "supertest": "^7.3.1",
+    "vitest": "^5.0.5"
+  }
+}
