@@ -1,13 +1,16 @@
-const r=require('express').Router(),
-c=require('../controllers/formula.controller');
+const router = require("express").Router();
+const controller = require("../controllers/formula.controller");
 
-r.post('/',c.create);
-r.post('/preview/bulk',c.bulk);
-r.post('/preview',c.preview);
-r.post('/:uuid/deactivate',c.deactivate);
-r.post('/:uuid/rollback',c.rollback);
-r.get('/:uuid/history',c.history);
-r.get('/:uuid/impact',c.impact);
-r.get('/',c.list);
+// Preview routes come first so `preview` is never parsed as a UUID parameter.
+router.post("/preview/bulk", controller.bulk);
+router.post("/preview", controller.preview);
 
-module.exports=r;
+router.post("/", controller.create);
+router.get("/", controller.list);
+
+router.get("/:uuid/history", controller.history);
+router.get("/:uuid/impact", controller.impact);
+router.post("/:uuid/deactivate", controller.deactivate);
+router.post("/:uuid/rollback", controller.rollback);
+
+module.exports = router;

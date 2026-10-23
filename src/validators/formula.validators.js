@@ -1,22 +1,47 @@
-const {z}=require('zod');
-const identifier=z.string().regex(/^[A-Za-z_][A-Za-z0-9_]*$/);
-const create=z.object({
-    uuid:z.string().uuid().optional(),
-    name:identifier,formulaText:z.string().min(1).max(10000),
-    expectedVersion:z.number().int().positive().optional(),
-    createdBy:z.string().max(128).default('api')
-});
-const action=z.object({
-    expectedVersion:z.number().int().positive(),
-    force:z.boolean().default(false),
-    createdBy:z.string().max(128).default('api')
-});
+const { z } = require("zod");
 
-module.exports={
-    create, action, rollback: action.extend({
-        version:z.number().int().positive().optional(),
-        id:z.number().int().positive().optional()
-    }).refine(
-        x=>x.version||x.id
-    )
-};
+const identifier = z
+  .string()
+  .min(1)
+  .max(128)
+  .regex(/^[A-Za-z_][A-Za-z0-9_]*$/, "Must be a valid identifier");
+
+const uuid = z.string().uuid();
+const expectedVersion = z.number().int().positive();
+const createdBy = z.string().min(1).max(128).default("api");
+
+const create = z
+  .object({
+    uuid: uuid.optional(),
+    name: identifier,
+    formulaText: z.string().min(1).max(10000),
+    expectedVersion: expectedVersion.optional(),
+    createdBy,
+  })
+  .strict();
+
+const action = z
+  .object({
+    expectedVersion,
+    force: z.boolean().default(false),
+    createdBy,
+  })
+  .strict();
+
+const rollback = action
+  .extend({
+    version: z.number().int().positive().optional(),
+    id: z.number().int().positive().optional(),
+  })
+  .refine((value) => value.version !== undefined || value.id !== undefined, {
+    message: "Provide the version (or id) to restore",
+    path: ["version"],
+  });
+
+const listQuery = z
+  .object({
+    status: z.enum(["ACTIVE", "INACTIVE"]).optional(),
+  })
+  .strict();
+
+module.exports = { create, action, rollback, listQuery, identifier };

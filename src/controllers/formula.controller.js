@@ -1,123 +1,69 @@
-const svc = require("../services/formula.service");
+const formulaService = require("../services/formula.service");
+const previewService = require("../services/preview.service");
 const { pool } = require("../config/database");
-const { preview } = require("../services/preview.service");
-const { impacts } = require("../services/dependency.service");
-const { AppError } = require("../utils/errors");
-const parse = (schema, value) => {
-  const r = schema.safeParse(value);
-  if (!r.success)
-    throw new AppError(
-      400,
-      "VALIDATION_ERROR",
-      "Invalid request",
-      r.error.issues,
-    );
-  return r.data;
-};
-exports.create = async (req, res, next) => {
-  try {
-    res
-      .status(201)
-      .json({
-        data: await svc.create(
-          parse(require("../validators/formula.validators").create, req.body),
-        ),
-      });
-  } catch (e) {
-    next(e);
-  }
-};
-exports.deactivate = async (req, res, next) => {
-  try {
-    res.json({
-      data: await svc.changeStatus(
-        req.params.uuid,
-        parse(require("../validators/formula.validators").action, req.body),
-        "INACTIVE",
-      ),
-    });
-  } catch (e) {
-    next(e);
-  }
-};
-exports.rollback = async (req, res, next) => {
-  try {
-    res.json({
-      data: await svc.rollback(
-        req.params.uuid,
-        parse(require("../validators/formula.validators").rollback, req.body),
-      ),
-    });
-  } catch (e) {
-    next(e);
-  }
-};
-exports.list = async (req, res, next) => {
-  try {
-    const [r] = await pool.execute(
-      "SELECT * FROM current_formulas ORDER BY name",
-    );
-    res.json({ data: r });
-  } catch (e) {
-    next(e);
-  }
-};
-exports.history = async (req, res, next) => {
-  try {
-    const [r] = await pool.execute(
-      "SELECT * FROM formulas WHERE uuid=? ORDER BY id",
-      [req.params.uuid],
-    );
-    res.json({ data: r });
-  } catch (e) {
-    next(e);
-  }
-};
-exports.impact = async (req, res, next) => {
-  try {
-    const [r] = await pool.execute(
-      "SELECT * FROM current_formulas WHERE status='ACTIVE'",
-    );
-    const f = r.find((x) => x.uuid === req.params.uuid);
-    if (!f)
-      return res
-        .status(404)
-        .json({ error: { code: "NOT_FOUND", message: "Formula not found" } });
-    res.json({ data: impacts(r, f.name) });
-  } catch (e) {
-    next(e);
-  }
-};
-exports.preview = async (req, res, next) => {
-  try {
-    res.json({
-      data: await preview(
-        parse(require("../validators/preview.validators").preview, req.body)
-          .input,
-        req.body,
-      ),
-    });
-  } catch (e) {
-    next(e);
-  }
-};
-exports.bulk = async (req, res, next) => {
-  try {
-    const body = parse(
-        require("../validators/preview.validators").bulk,
-        req.body,
-      ),
-      started = Date.now();
-    const results = [];
-    for (const input of body.records) results.push(await preview(input, body));
-    res.json({
-      data: {
-        results,
-        totalExecutionMs: Date.now() - started,
-        averageMs: (Date.now() - started) / body.records.length,
-      },
-    });
-  } catch (e) {
-    next(e);
-  }
-};
+const { parse, asyncHandler, uuidParam } = require("../middleware/validate");
+const validators = require("../validators/formula.validators");
+const previewValidators = require("../validators/preview.validators");
+
+const before = () => process.hrtime.bigint();
+const elapsedMs = (startedAt) => Number(process.hrtime.bigint() - startedAt) / 1e6;
+
+/** POST /formulas - create (or append a new version of) a formula. */
+exports.create = asyncHandler(async (req, res) => {
+  const body = parse(validators.create, req.body);
+  res.status(201).json({ data: await formulaService.create(body) });
+});
+
+/** GET /formulas - current version of every formula. */
+exports.list = asyncHandler(async (req, res) => {
+  const query = parse(validators.listQuery, req.query, "query");
+  res.json({ data: await formulaService.list(pool, query) });
+});
+
+/** GET /formulas/:uuid/history - every stored version, oldest first. */
+exports.history = asyncHandler(async (req, res) => {
+  const uuid = parse(uuidParam, req.params.uuid, "uuid");
+  res.json({ data: await formulaService.history(pool, uuid) });
+});
+
+/** GET /formulas/:uuid/impact - formulas whose value depends on this one. */
+exports.impact = asyncHandler(async (req, res) => {
+  const uuid = parse(uuidParam, req.params.uuid, "uuid");
+  res.json({ data: await formulaService.impact(pool, uuid) });
+});
+
+/** POST /formulas/:uuid/deactivate - append an INACTIVE version. */
+exports.deactivate = asyncHandler(async (req, res) => {
+  const uuid = parse(uuidParam, req.params.uuid, "uuid");
+  const body = parse(validators.action, req.body);
+  res.json({ data: await formulaService.deactivate(uuid, body) });
+});
+
+/** POST /formulas/:uuid/rollback - re-append a historical version. */
+exports.rollback = asyncHandler(async (req, res) => {
+  const uuid = parse(uuidParam, req.params.uuid, "uuid");
+  const body = parse(validators.rollback, req.body);
+  res.json({ data: await formulaService.rollback(uuid, body) });
+});
+
+/** POST /formulas/preview - evaluate one record. */
+exports.preview = asyncHandler(async (req, res) => {
+  const startedAt = before();
+  const body = parse(previewValidators.preview, req.body);
+  const data = await previewService.preview(body.input, {
+    formulaUuids: body.formulaUuids,
+    asOf: body.asOf,
+  });
+  res.json({ data: { ...data, requestDurationMs: Number(elapsedMs(startedAt).toFixed(2)) } });
+});
+
+/** POST /formulas/preview/bulk - evaluate up to 500 records in one run. */
+exports.bulk = asyncHandler(async (req, res) => {
+  const startedAt = before();
+  const body = parse(previewValidators.bulk, req.body);
+  const data = await previewService.bulkPreview(body.records, {
+    formulaUuids: body.formulaUuids,
+    asOf: body.asOf,
+  });
+  res.json({ data: { ...data, requestDurationMs: Number(elapsedMs(startedAt).toFixed(2)) } });
+});
