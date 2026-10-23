@@ -8,5 +8,6 @@ coverage/
 .env.*
 !.env.example
 *.log
+.tiermux/
 .DS_Store
 Thumbs.db
