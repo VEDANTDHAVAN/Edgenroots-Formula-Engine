@@ -1,3 +1,0 @@
-const { interpretor } = require('formula-interpreter'); const env = require('./env'); const { round } = require('../utils/decimal');
-const evaluate = async (formulaText, values, timeout = env.evaluationTimeoutMs) => { try { const response = await interpretor(`return (${formulaText});`, [], { CODE: values }, { timeout }); if (!response || response.status !== 1) return { ok: false, error: response?.error || 'Evaluation failed', calculation: response?.calculation || null }; const result = typeof response.data === 'number' ? round(response.data) : response.data; return { ok: true, result, calculation: response.calculation || null }; } catch (error) { return { ok: false, error: error.message || 'Evaluation failed', calculation: null }; } };
-module.exports = { evaluate };
