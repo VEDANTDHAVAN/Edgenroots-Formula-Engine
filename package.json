@@ -1,14 +1,16 @@
 {
   "name": "edgenroots-formula-engine",
   "version": "1.0.0",
-  "description": "",
+  "description": "Append-only, dependency-ordered formula engine on Express and MySQL, executing formulas through formula-interpreter.",
   "main": "src/server.js",
   "scripts": {
     "start": "node src/server.js",
     "dev": "nodemon src/server.js",
-    "test": "vitest run",
+    "test": "node node_modules/vitest/vitest.mjs run",
     "benchmark": "node scripts/benchmark.js",
-    "probe": "node scripts/probe-interpreter.js"
+    "db:setup": "node scripts/db-setup.js",
+    "db:reset": "node scripts/db-setup.js --reset",
+    "audit": "node scripts/audit.js"
   },
   "keywords": [],
   "author": "",
