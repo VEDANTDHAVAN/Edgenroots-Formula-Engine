@@ -188,21 +188,21 @@ sequentially because they share one schema and fork worker processes.
 
 ## Append-only versioning (written answer)
 
-1. The system stores each logical change as a new row instead of overwriting the previous version.
-2. Each logical formula retains a stable UUID across its versions.
-3. Each inserted version receives a unique, increasing database ID.
-4. The latest version is identified by the highest ID for that UUID.
-5. This preserves a complete audit trail of formula changes.
-6. Historical versions support debugging, comparisons, and rollback.
-7. As-of previews can reproduce calculations using earlier formula versions.
-8. Deactivation is represented by inserting an INACTIVE version.
-9. The primary cost is increased storage as versions accumulate.
-10. Indexes and secondary indexes also consume storage and increase insert costs.
-11. Index UUID and version ID appropriately for current-version and history queries.
-12. Use query plans and workload measurements to tune indexes rather than adding them indiscriminately.
-13. Keep frequently accessed current-state data efficient through indexed views or a separately maintained read model if justified.
-14. Consider time-based partitioning or archival only after validating MySQL constraints and query requirements.
-15. Monitor table growth, query latency, index size, and execution plans as the history reaches millions of rows.
+1. Store every change as a new row to preserve the complete history of formula modifications.
+2. Each logical formula retains a stable UUID, while every version receives a unique, auto-incrementing ID.
+3. This provides an audit trail showing what changed and when.
+4. Previous versions remain available for debugging, comparison, and rollback.
+5. Historical formula versions also enable reproducible, as-of-date previews.
+6. Deactivation inserts an INACTIVE version instead of deleting existing data.
+7. The main cost is increased database storage as versions accumulate.
+8. Additional indexes consume storage and increase the cost of inserts.
+9. Index the UUID and version ID to make history and current-version lookups efficient.
+10. Use a composite index such as (uuid, id) where supported by the actual query patterns.
+11. Retrieve the current version using the highest ID per UUID, and inspect query plans to optimize this operation.
+12. Paginate historical queries and select only the columns required instead of scanning entire records.
+13. Use EXPLAIN ANALYZE, appropriate indexes, and realistic benchmarks to identify slow queries.
+14. For millions of versions, consider archival or partitioning only after evaluating MySQL constraints, indexing trade-offs, and historical-query requirements.
+15. Monitor table growth, index size, insert latency, and query performance; optimize based on measured workloads rather than deleting historical versions.
 
 ## Limitations
 
