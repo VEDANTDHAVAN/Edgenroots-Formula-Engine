@@ -186,6 +186,24 @@ sequentially because they share one schema and fork worker processes.
   the worker is killed and replaced.
 * **Run logging** is one multi-row `INSERT` per request, not one per formula.
 
+## Append-only versioning (written answer)
+
+1. The system stores each logical change as a new row instead of overwriting the previous version.
+2. Each logical formula retains a stable UUID across its versions.
+3. Each inserted version receives a unique, increasing database ID.
+4. The latest version is identified by the highest ID for that UUID.
+5. This preserves a complete audit trail of formula changes.
+6. Historical versions support debugging, comparisons, and rollback.
+7. As-of previews can reproduce calculations using earlier formula versions.
+8. Deactivation is represented by inserting an INACTIVE version.
+9. The primary cost is increased storage as versions accumulate.
+10. Indexes and secondary indexes also consume storage and increase insert costs.
+11. Index UUID and version ID appropriately for current-version and history queries.
+12. Use query plans and workload measurements to tune indexes rather than adding them indiscriminately.
+13. Keep frequently accessed current-state data efficient through indexed views or a separately maintained read model if justified.
+14. Consider time-based partitioning or archival only after validating MySQL constraints and query requirements.
+15. Monitor table growth, query latency, index size, and execution plans as the history reaches millions of rows.
+
 ## Limitations
 
 * `formula-interpreter`'s helper `libraries` are broken in the installed version (`require is not
